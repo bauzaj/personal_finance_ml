@@ -84,3 +84,44 @@ GRANT ALL ON FUTURE TABLES IN SCHEMA PERSONAL_FINANCE.STAGING TO ROLE TRANSFORME
 GRANT ALL ON FUTURE TABLES IN SCHEMA PERSONAL_FINANCE.ANALYTICS TO ROLE TRANSFORMER;
 GRANT USAGE ON WAREHOUSE FINANCE_WH TO ROLE TRANSFORMER;
 
+-- =============================================================================
+-- Phase 1: RAW table for Plaid transactions
+-- =============================================================================
+
+USE ROLE TRANSFORMER;
+USE WAREHOUSE FINANCE_WH;
+USE DATABASE PERSONAL_FINANCE;
+USE SCHEMA RAW;
+
+CREATE TABLE IF NOT EXISTS RAW.PLAID_TRANSACTIONS (
+    -- Plaid identifiers
+    TRANSACTION_ID          VARCHAR(50)  NOT NULL,
+    ACCOUNT_ID              VARCHAR(50)  NOT NULL,
+    ITEM_ID                 VARCHAR(50),
+
+    -- Transaction details
+    TRANSACTION_DATE        DATE         NOT NULL,
+    AUTHORIZED_DATE         DATE,
+    AMOUNT                  NUMBER(12,2) NOT NULL,
+    ISO_CURRENCY_CODE       VARCHAR(3),
+    MERCHANT_NAME           VARCHAR(500),
+    NAME                    VARCHAR(500),
+
+    -- Plaid-assigned categorization (we'll override with our ML model later)
+    PERSONAL_FINANCE_CATEGORY_PRIMARY    VARCHAR(100),
+    PERSONAL_FINANCE_CATEGORY_DETAILED   VARCHAR(200),
+    PAYMENT_CHANNEL                      VARCHAR(50),
+
+    -- Status flags
+    PENDING                 BOOLEAN,
+
+    -- Raw API response (full JSON for reprocessing if schema evolves)
+    RAW_PAYLOAD             VARIANT,
+
+    -- Metadata
+    INGESTED_AT             TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+
+    PRIMARY KEY (TRANSACTION_ID)
+)
+COMMENT = 'Raw Plaid transactions — full API response preserved in RAW_PAYLOAD';
+
