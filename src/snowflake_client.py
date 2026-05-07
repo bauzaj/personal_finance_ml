@@ -6,46 +6,28 @@ common operations (executing queries, bulk inserts).
 
 Uses key-pair authentication for programmatic access (production pattern).
 """
-import os
 import json
-from pathlib import Path
 from typing import List, Dict
-from dotenv import load_dotenv
 import snowflake.connector
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
-load_dotenv()
+from config import Config
+from logger import get_logger
+
+log = get_logger(__name__)
 
 
 class SnowflakeClient:
     """Wrapper around the Snowflake Python connector with helper methods."""
 
-    def __init__(self):
-        self.account = os.getenv('SNOWFLAKE_ACCOUNT')
-        self.user = os.getenv('SNOWFLAKE_USER')
-        self.private_key_path = os.getenv('SNOWFLAKE_PRIVATE_KEY_PATH')
-        self.database = os.getenv('SNOWFLAKE_DATABASE', 'PERSONAL_FINANCE')
-        self.warehouse = os.getenv('SNOWFLAKE_WAREHOUSE', 'FINANCE_WH')
-        self.role = os.getenv('SNOWFLAKE_ROLE', 'TRANSFORMER')
-
-        missing = [k for k, v in {
-            'SNOWFLAKE_ACCOUNT': self.account,
-            'SNOWFLAKE_USER': self.user,
-            'SNOWFLAKE_PRIVATE_KEY_PATH': self.private_key_path,
-        }.items() if not v]
-        if missing:
-            raise ValueError(f"Missing required env vars: {missing}")
-
+    def __init__(self, config: Config = None):
+        self.config = config or Config.from_env()
         self.conn = None
 
     def _load_private_key(self) -> bytes:
         """Load and serialize the private key for Snowflake authentication."""
-        key_path = Path(self.private_key_path).expanduser()
-        if not key_path.exists():
-            raise FileNotFoundError(f"Private key not found at {key_path}")
-
-        with open(key_path, 'rb') as f:
+        with open(self.config.snowflake_private_key_path, 'rb') as f:
             private_key = serialization.load_pem_private_key(
                 f.read(),
                 password=None,
@@ -61,16 +43,16 @@ class SnowflakeClient:
     def connect(self):
         """Open a connection to Snowflake using key-pair authentication."""
         self.conn = snowflake.connector.connect(
-            account=self.account,
-            user=self.user,
+            account=self.config.snowflake_account,
+            user=self.config.snowflake_user,
             private_key=self._load_private_key(),
-            role=self.role,
+            role=self.config.snowflake_role,
         )
         cursor = self.conn.cursor()
         try:
-            cursor.execute(f"USE ROLE {self.role}")
-            cursor.execute(f"USE WAREHOUSE {self.warehouse}")
-            cursor.execute(f"USE DATABASE {self.database}")
+            cursor.execute(f"USE ROLE {self.config.snowflake_role}")
+            cursor.execute(f"USE WAREHOUSE {self.config.snowflake_warehouse}")
+            cursor.execute(f"USE DATABASE {self.config.snowflake_database}")
         finally:
             cursor.close()
         return self.conn

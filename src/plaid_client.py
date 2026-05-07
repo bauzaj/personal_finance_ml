@@ -4,11 +4,9 @@ Plaid API client module.
 Centralizes Plaid connection setup and provides reusable methods for
 common operations (creating sandbox tokens, exchanging tokens, fetching transactions).
 """
-import os
 import time
 from datetime import date, timedelta
 from typing import List, Dict
-from dotenv import load_dotenv
 import plaid
 from plaid.api import plaid_api
 from plaid.exceptions import ApiException
@@ -18,8 +16,10 @@ from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchan
 from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.transactions_get_request_options import TransactionsGetRequestOptions
 
-load_dotenv()
+from config import Config
+from logger import get_logger
 
+log = get_logger(__name__)
 
 class PlaidClient:
     """Wrapper around the Plaid API client with helper methods for common workflows."""
@@ -30,23 +30,28 @@ class PlaidClient:
         'production': plaid.Environment.Production,
     }
 
-    # Default sandbox test institution (First Platypus Bank)
+    # Default sandbox test institutions (different banks with different transaction patterns)
+    SANDBOX_INSTITUTIONS = [
+        'ins_109508',  # First Platypus Bank
+        'ins_109509',  # First Gingham Credit Union
+        'ins_109510',  # Tattersall Federal Credit Union
+        'ins_109511',  # Tartan Bank
+        'ins_109512',  # Houndstooth Bank
+    ]
+
     DEFAULT_SANDBOX_INSTITUTION = 'ins_109508'
 
-    def __init__(self):
-        self.client_id = os.getenv('PLAID_CLIENT_ID')
-        self.secret = os.getenv('PLAID_SECRET')
-        self.env = os.getenv('PLAID_ENV', 'sandbox')
-
-        if not self.client_id or not self.secret:
-            raise ValueError("PLAID_CLIENT_ID and PLAID_SECRET must be set in .env")
-
-        if self.env not in self.ENV_MAP:
-            raise ValueError(f"PLAID_ENV must be one of {list(self.ENV_MAP.keys())}")
+    
+    def __init__(self, config: Config = None):
+        self.config = config or Config.from_env()
+        self.env = self.config.plaid_env
 
         configuration = plaid.Configuration(
             host=self.ENV_MAP[self.env],
-            api_key={'clientId': self.client_id, 'secret': self.secret}
+            api_key={
+                'clientId': self.config.plaid_client_id,
+                'secret': self.config.plaid_secret,
+            }
         )
         self.client = plaid_api.PlaidApi(plaid.ApiClient(configuration))
 
@@ -68,6 +73,25 @@ class PlaidClient:
         )['access_token']
 
         return access_token
+    
+    def create_multiple_sandbox_tokens(self, institutions: list = None) -> List[Dict]:
+        """
+        Create access tokens for multiple sandbox institutions.
+        Returns a list of dicts: [{'institution_id': ..., 'access_token': ...}, ...]
+        """
+        institutions = institutions or self.SANDBOX_INSTITUTIONS
+        tokens = []
+        for institution_id in institutions:
+            try:
+                token = self.create_sandbox_access_token(institution_id)
+                tokens.append({
+                    'institution_id': institution_id,
+                    'access_token': token
+                })
+            except ApiException as e:
+                logger.warning(f"Skipping institution {institution_id}: {e}")
+                continue
+        return tokens
 
     def get_transactions(
         self,
