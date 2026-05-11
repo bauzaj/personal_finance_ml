@@ -89,7 +89,7 @@ class PlaidClient:
                     'access_token': token
                 })
             except ApiException as e:
-                logger.warning(f"Skipping institution {institution_id}: {e}")
+                log.warning(f"Skipping institution {institution_id}: {e}")
                 continue
         return tokens
 
