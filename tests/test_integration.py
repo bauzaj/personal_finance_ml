@@ -7,12 +7,13 @@ They are slower than unit tests and require working credentials.
 Run only with: pytest tests/test_integration.py -v -m integration
 Or skip with:  pytest tests/ -v -m "not integration"
 """
+
 import os
 import sys
 import pytest
 import uuid
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from config import Config
 from plaid_client import PlaidClient
@@ -23,13 +24,13 @@ from snowflake_client import SnowflakeClient
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def config():
     """Real config loaded from .env (requires valid credentials)."""
     return Config.from_env()
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def plaid_client(config):
     return PlaidClient(config=config)
 
@@ -50,7 +51,7 @@ def test_run_id():
 def test_plaid_can_create_sandbox_token(plaid_client):
     """We can actually create a sandbox access token from Plaid."""
     token = plaid_client.create_sandbox_access_token()
-    assert token.startswith('access-sandbox-')
+    assert token.startswith("access-sandbox-")
 
 
 def test_plaid_can_fetch_transactions(plaid_client):
@@ -62,9 +63,9 @@ def test_plaid_can_fetch_transactions(plaid_client):
 
     # Verify expected structure
     tx = transactions[0]
-    assert 'transaction_id' in tx
-    assert 'amount' in tx
-    assert 'date' in tx
+    assert "transaction_id" in tx
+    assert "amount" in tx
+    assert "date" in tx
 
 
 def test_snowflake_can_connect(snowflake_client):
@@ -75,11 +76,13 @@ def test_snowflake_can_connect(snowflake_client):
 
 def test_snowflake_test_schema_exists(snowflake_client):
     """The RAW_TEST schema must exist before integration tests can run."""
-    result = snowflake_client.execute("""
+    result = snowflake_client.execute(
+        """
         SELECT COUNT(*)
         FROM INFORMATION_SCHEMA.SCHEMATA
         WHERE SCHEMA_NAME = 'RAW_TEST'
-    """)
+    """
+    )
     assert result[0][0] == 1
 
 
@@ -95,37 +98,41 @@ def test_full_pipeline_end_to_end(plaid_client, snowflake_client, test_run_id):
 
     # 2. Tag each transaction with our test run ID so we can clean up later
     for tx in transactions:
-        tx['_test_run_id'] = test_run_id
+        tx["_test_run_id"] = test_run_id
         # Override transaction_id to avoid collisions with real ingestion data
-        tx['transaction_id'] = f"{test_run_id}_{tx['transaction_id']}"
+        tx["transaction_id"] = f"{test_run_id}_{tx['transaction_id']}"
 
     # 3. Insert into test schema
     merged = snowflake_client.insert_transactions(
-        schema='RAW_TEST',
-        table='PLAID_TRANSACTIONS',
-        transactions=transactions
+        schema="RAW_TEST", table="PLAID_TRANSACTIONS", transactions=transactions
     )
     assert merged == len(transactions)
 
     # 4. Verify rows landed correctly
-    result = snowflake_client.execute(f"""
+    result = snowflake_client.execute(
+        f"""
         SELECT COUNT(*)
         FROM RAW_TEST.PLAID_TRANSACTIONS
         WHERE TRANSACTION_ID LIKE '{test_run_id}_%'
-    """)
+    """
+    )
     assert result[0][0] == len(transactions)
 
     # 5. Verify non-null critical fields
-    result = snowflake_client.execute(f"""
+    result = snowflake_client.execute(
+        f"""
         SELECT COUNT(*)
         FROM RAW_TEST.PLAID_TRANSACTIONS
         WHERE TRANSACTION_ID LIKE '{test_run_id}_%'
           AND (ACCOUNT_ID IS NULL OR TRANSACTION_DATE IS NULL OR AMOUNT IS NULL)
-    """)
+    """
+    )
     assert result[0][0] == 0, "Found rows with NULL critical fields"
 
     # 6. Cleanup — delete the test rows
-    snowflake_client.execute(f"""
+    snowflake_client.execute(
+        f"""
         DELETE FROM RAW_TEST.PLAID_TRANSACTIONS
         WHERE TRANSACTION_ID LIKE '{test_run_id}_%'
-    """)
+    """
+    )

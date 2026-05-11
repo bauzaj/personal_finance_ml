@@ -4,9 +4,9 @@ Configuration validation.
 Validates required environment variables at startup and exposes them as a
 typed Config object. Fails fast with clear error messages when misconfigured.
 """
+
 import os
 from pathlib import Path
-from typing import Optional
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
@@ -31,34 +31,36 @@ class Config:
     snowflake_role: str
 
     @classmethod
-    def from_env(cls) -> 'Config':
+    def from_env(cls) -> "Config":
         """Build Config from environment variables, validating each one."""
         errors = []
 
         # Required Plaid vars
-        plaid_client_id = os.getenv('PLAID_CLIENT_ID')
+        plaid_client_id = os.getenv("PLAID_CLIENT_ID")
         if not plaid_client_id:
             errors.append("PLAID_CLIENT_ID is required")
 
-        plaid_secret = os.getenv('PLAID_SECRET')
+        plaid_secret = os.getenv("PLAID_SECRET")
         if not plaid_secret:
             errors.append("PLAID_SECRET is required")
 
-        plaid_env = os.getenv('PLAID_ENV', 'sandbox')
-        if plaid_env not in ('sandbox', 'production'):
-            errors.append(f"PLAID_ENV must be 'sandbox' or 'production', got '{plaid_env}'")
+        plaid_env = os.getenv("PLAID_ENV", "sandbox")
+        if plaid_env not in ("sandbox", "production"):
+            errors.append(
+                f"PLAID_ENV must be 'sandbox' or 'production', got '{plaid_env}'"
+            )
 
         # Required Snowflake vars
-        snowflake_account = os.getenv('SNOWFLAKE_ACCOUNT')
+        snowflake_account = os.getenv("SNOWFLAKE_ACCOUNT")
         if not snowflake_account:
             errors.append("SNOWFLAKE_ACCOUNT is required")
 
-        snowflake_user = os.getenv('SNOWFLAKE_USER')
+        snowflake_user = os.getenv("SNOWFLAKE_USER")
         if not snowflake_user:
             errors.append("SNOWFLAKE_USER is required")
 
         # Validate the private key path exists and is readable
-        key_path_str = os.getenv('SNOWFLAKE_PRIVATE_KEY_PATH')
+        key_path_str = os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH")
         if not key_path_str:
             errors.append("SNOWFLAKE_PRIVATE_KEY_PATH is required")
             snowflake_private_key_path = None
@@ -79,9 +81,9 @@ class Config:
                 )
 
         # Optional Snowflake vars with defaults
-        snowflake_database = os.getenv('SNOWFLAKE_DATABASE', 'PERSONAL_FINANCE')
-        snowflake_warehouse = os.getenv('SNOWFLAKE_WAREHOUSE', 'FINANCE_WH')
-        snowflake_role = os.getenv('SNOWFLAKE_ROLE', 'TRANSFORMER')
+        snowflake_database = os.getenv("SNOWFLAKE_DATABASE", "PERSONAL_FINANCE")
+        snowflake_warehouse = os.getenv("SNOWFLAKE_WAREHOUSE", "FINANCE_WH")
+        snowflake_role = os.getenv("SNOWFLAKE_ROLE", "TRANSFORMER")
 
         if errors:
             error_msg = "Configuration validation failed:\n  - " + "\n  - ".join(errors)

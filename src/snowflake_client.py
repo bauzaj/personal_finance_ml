@@ -6,6 +6,7 @@ common operations (executing queries, bulk inserts).
 
 Uses key-pair authentication for programmatic access (production pattern).
 """
+
 import json
 from typing import List, Dict
 import snowflake.connector
@@ -27,11 +28,9 @@ class SnowflakeClient:
 
     def _load_private_key(self) -> bytes:
         """Load and serialize the private key for Snowflake authentication."""
-        with open(self.config.snowflake_private_key_path, 'rb') as f:
+        with open(self.config.snowflake_private_key_path, "rb") as f:
             private_key = serialization.load_pem_private_key(
-                f.read(),
-                password=None,
-                backend=default_backend()
+                f.read(), password=None, backend=default_backend()
             )
 
         return private_key.private_bytes(
@@ -79,7 +78,9 @@ class SnowflakeClient:
         finally:
             cursor.close()
 
-    def insert_transactions(self, schema: str, table: str, transactions: List[Dict]) -> int:
+    def insert_transactions(
+        self, schema: str, table: str, transactions: List[Dict]
+    ) -> int:
         """
         Insert (merge) Plaid transactions into the target table.
         Idempotent — uses MERGE so re-runs don't create duplicates.
@@ -142,22 +143,22 @@ class SnowflakeClient:
 
             count = 0
             for tx in transactions:
-                pfc = tx.get('personal_finance_category') or {}
+                pfc = tx.get("personal_finance_category") or {}
                 params = {
-                    'transaction_id': tx['transaction_id'],
-                    'account_id': tx['account_id'],
-                    'item_id': tx.get('item_id'),
-                    'transaction_date': tx['date'],
-                    'authorized_date': tx.get('authorized_date'),
-                    'amount': tx['amount'],
-                    'iso_currency_code': tx.get('iso_currency_code'),
-                    'merchant_name': tx.get('merchant_name'),
-                    'name': tx.get('name'),
-                    'pfc_primary': pfc.get('primary'),
-                    'pfc_detailed': pfc.get('detailed'),
-                    'payment_channel': tx.get('payment_channel'),
-                    'pending': tx.get('pending'),
-                    'raw_payload': json.dumps(tx, default=str),
+                    "transaction_id": tx["transaction_id"],
+                    "account_id": tx["account_id"],
+                    "item_id": tx.get("item_id"),
+                    "transaction_date": tx["date"],
+                    "authorized_date": tx.get("authorized_date"),
+                    "amount": tx["amount"],
+                    "iso_currency_code": tx.get("iso_currency_code"),
+                    "merchant_name": tx.get("merchant_name"),
+                    "name": tx.get("name"),
+                    "pfc_primary": pfc.get("primary"),
+                    "pfc_detailed": pfc.get("detailed"),
+                    "payment_channel": tx.get("payment_channel"),
+                    "pending": tx.get("pending"),
+                    "raw_payload": json.dumps(tx, default=str),
                 }
                 cursor.execute(merge_sql, params)
                 count += 1

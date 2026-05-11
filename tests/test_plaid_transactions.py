@@ -1,4 +1,5 @@
 """Quick smoke test for the PlaidClient module."""
+
 from plaid_client import PlaidClient
 
 
@@ -13,8 +14,12 @@ def main():
     print(f"\nPulled {len(transactions)} transactions (showing first 10):\n")
 
     for tx in transactions[:10]:
-        category = tx.get('personal_finance_category', {}).get('primary', 'UNCATEGORIZED')
-        print(f"{tx['date']} | ${tx['amount']:>8.2f} | {tx['name'][:40]:<40} | {category}")
+        category = tx.get("personal_finance_category", {}).get(
+            "primary", "UNCATEGORIZED"
+        )
+        print(
+            f"{tx['date']} | ${tx['amount']:>8.2f} | {tx['name'][:40]:<40} | {category}"
+        )
 
 
 if __name__ == "__main__":

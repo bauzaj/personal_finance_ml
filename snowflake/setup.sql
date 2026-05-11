@@ -124,4 +124,3 @@ CREATE TABLE IF NOT EXISTS RAW.PLAID_TRANSACTIONS (
     PRIMARY KEY (TRANSACTION_ID)
 )
 COMMENT = 'Raw Plaid transactions — full API response preserved in RAW_PAYLOAD';
-
